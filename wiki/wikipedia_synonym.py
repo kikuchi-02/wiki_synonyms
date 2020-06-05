@@ -1,26 +1,22 @@
 # -*- coding: utf-8 -*-
 """
 Wikipediaのリダイレクト一覧からElasticsearchの類義語辞書を生成
+
 e.g.
 ベイクドチーズケーキ,CHEESE CAKE,チーズケーキ,焼きたてチーズケーキ,レアチーズケーキ
 ターンバック,ターン・バック
 黒崎バイパス,黒崎道路
 """
-from __future__ import unicode_literals
 
 import codecs
 import gzip
 import os
 import re
+import urllib.request as urllib
 from collections import defaultdict
 
-try:
-    import urllib.request as urllib
-except:  # for Python 2.X
-    import urllib
-    chr = unichr
-
-re_parentheses = re.compile("\((\d+),\d+,'?([^,']+)'?,[^\)]+\)")
+# page_namespace == 0 一般記事
+re_parentheses = re.compile("\((\d+),0,'?([^,']+)'?,[^\)]+\)")
 re_title_brackets = re.compile('_\([^\)]+\)$')
 IGNORE_PREFIX = ('削除依頼/', '検証/', '進行中の荒らし行為/', '井戸端/', 'WP:', '利用者:', 'User:',
                  'ウィキプロジェクト', 'PJ:')
@@ -52,8 +48,8 @@ def normalize(title):
 
 
 def is_valid_title(title):
-    if (title.startswith(IGNORE_PREFIX) or title.endswith('の一覧')
-            or title in HIRAGANA or title in KATAKANA):
+    if (title.startswith(IGNORE_PREFIX) or title in HIRAGANA
+            or title in KATAKANA):
         return False
     return not any(s in title for s in IGNORE_SUBSTR)
 
@@ -81,10 +77,11 @@ def write(synonyms, path):
     with codecs.open(path, 'w', encoding='utf8') as fd:
         for (word, words) in synonyms.items():
             words.add(word)
-            fd.write('%s\n' % (','.join(words)))
+            if not any(map(lambda x: '一覧' in x, words)):
+                fd.write('%s\n' % (','.join(words)))
 
 
-def claen():
+def clean():
     for filename in ('jawiki-latest-page.sql.gz',
                      'jawiki-latest-redirect.sql.gz'):
         if os.path.exists(filename):
@@ -99,4 +96,5 @@ if __name__ == '__main__':
                                      path='jawiki-latest-redirect.sql.gz')
         write(synonyms, path='wikipedia_synonym.txt')
     finally:
-        claen()
+        pass
+        # clean()
